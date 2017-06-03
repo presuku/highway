@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <ctype.h>
 #ifndef _WIN32
 #include <sys/ioctl.h>
 #endif
@@ -17,6 +18,16 @@
 #include "color.h"
 
 hw_option op;
+
+static bool has_uppercase(const char *s) {
+    while (*s) {
+        if (!isascii(*s) || isupper(*s)) {
+            return true;
+        }
+        ++s;
+    }
+    return false;
+}
 
 void init_option(int argc, char **argv)
 {
@@ -35,6 +46,7 @@ void init_option(int argc, char **argv)
         { "before-context",       required_argument, NULL,  'B' },
         { "context",              required_argument, NULL,  'C' },
         { "no-line-number",       no_argument,       NULL,  'N' },
+        { "smart-case",           no_argument,       NULL,  'S' },
         { "debug",                no_argument,       &flag,  1  },
         { "worker",               required_argument, &flag,  2  },
         { "no-omit",              no_argument,       &flag,  3  },
@@ -80,6 +92,7 @@ void init_option(int argc, char **argv)
     op.all_files            = false;
     op.no_omit              = false;
     op.ignore_case          = false;
+    op.smart_case           = false;
     op.follow_link          = false;
     op.stdout_redirect      = IS_STDOUT_REDIRECT;
     op.stdin_redirect       = IS_STDIN_REDIRECT;
@@ -101,7 +114,7 @@ void init_option(int argc, char **argv)
 
     int ch;
     bool show_version = false;
-    while ((ch = getopt_long(argc, argv, "aefhilnvwx:A:B:C:N", longopts, NULL)) != -1) {
+    while ((ch = getopt_long(argc, argv, "aefhilnvwx:A:B:C:NS", longopts, NULL)) != -1) {
         switch (ch) {
             case 0:
                 switch (flag) {
@@ -173,6 +186,10 @@ void init_option(int argc, char **argv)
                 op.use_regex   = true;
                 break;
 
+            case 'S': /* Smart case */
+                op.smart_case = true;
+                break;
+
             case 'l': /* Show only filenames */
                 op.file_with_matches = true;
                 break;
@@ -228,6 +245,17 @@ void init_option(int argc, char **argv)
     }
 
     op.pattern = argv[optind++];
+
+    /* Check pattern for smart case */
+    if (op.smart_case) {
+        if (has_uppercase(op.pattern)) {
+            op.ignore_case = false;
+            op.use_regex   = false;
+        } else {
+            op.ignore_case = true;
+            op.use_regex   = true;
+        }
+    }
 
     int paths_count = argc - optind;
     if (paths_count > MAX_PATHS_COUNT) {
