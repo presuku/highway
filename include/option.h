@@ -30,6 +30,7 @@ typedef struct _hw_option {
     bool all_files;
     bool no_omit;
     bool ignore_case;
+    bool smart_case;
     bool follow_link;
     bool show_line_number;
     bool color;
